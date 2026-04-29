@@ -1,0 +1,5 @@
+﻿Rank,Ticker,Name,Price,Score,P/E,P/E Score,Growth,Growth Score,Margin,Margin Score,D/E,D/E Score,Implied Growth,Valuation Score
+1,AMD,"Advanced Micro Devices, Inc.",347.8,75,133.2567,5,0.341,20,0.12515001,10,6.359,20,0.27,20
+2,LLY,Eli Lilly and Company,883.96,70,38.466496,5,0.426,20,0.31667,20,165.31,5,0.33,20
+3,ARM,Arm Holdings plc,234.81,65,313.08,5,0.263,20,0.17148,15,5.912,20,0.5,5
+4,INTC,Intel Corporation,82.57,30,,0,0.072,10,-0.05904,5,36.028,15,,0

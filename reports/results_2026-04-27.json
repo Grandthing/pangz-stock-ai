@@ -1,0 +1,248 @@
+{
+  "date": "2026-04-27 15:10",
+  "total_stocks": 4,
+  "stocks": [
+    {
+      "symbol": "AMD",
+      "name": "Advanced Micro Devices, Inc.",
+      "price": 347.8,
+      "total_score": 75,
+      "pe": 133.2567,
+      "growth": 0.341,
+      "margin": 0.12515001,
+      "de": 6.359,
+      "implied_growth": 0.27,
+      "scores": {
+        "P/E Ratio": 5,
+        "Revenue Growth": 20,
+        "Profit Margin": 10,
+        "Debt/Equity": 20,
+        "Valuation": 20
+      },
+      "financials": [
+        {
+          "year": "2025",
+          "revenue": 34639000000.0,
+          "net_income": 4335000000.0,
+          "ebitda": 7275000000.0,
+          "total_assets": 76926000000.0,
+          "total_debt": 3847000000.0,
+          "free_cashflow": 6735000000.0
+        },
+        {
+          "year": "2024",
+          "revenue": 25785000000.0,
+          "net_income": 1641000000.0,
+          "ebitda": 5145000000.0,
+          "total_assets": 69226000000.0,
+          "total_debt": 2212000000.0,
+          "free_cashflow": 2405000000.0
+        },
+        {
+          "year": "2023",
+          "revenue": 22680000000.0,
+          "net_income": 854000000.0,
+          "ebitda": 4051000000.0,
+          "total_assets": 67885000000.0,
+          "total_debt": 3003000000.0,
+          "free_cashflow": 1121000000.0
+        },
+        {
+          "year": "2022",
+          "revenue": 23601000000.0,
+          "net_income": 1320000000.0,
+          "ebitda": 5534000000.0,
+          "total_assets": 67580000000.0,
+          "total_debt": 2863000000.0,
+          "free_cashflow": 3115000000.0
+        },
+        {
+          "year": "2021",
+          "revenue": NaN,
+          "net_income": NaN,
+          "ebitda": NaN,
+          "total_assets": NaN,
+          "total_debt": NaN,
+          "free_cashflow": NaN
+        }
+      ]
+    },
+    {
+      "symbol": "LLY",
+      "name": "Eli Lilly and Company",
+      "price": 883.96,
+      "total_score": 70,
+      "pe": 38.466496,
+      "growth": 0.426,
+      "margin": 0.31667,
+      "de": 165.31,
+      "implied_growth": 0.33,
+      "scores": {
+        "P/E Ratio": 5,
+        "Revenue Growth": 20,
+        "Profit Margin": 20,
+        "Debt/Equity": 5,
+        "Valuation": 20
+      },
+      "financials": [
+        {
+          "year": "2025",
+          "revenue": 65179000000.0,
+          "net_income": 20640000000.0,
+          "ebitda": 31693000000.0,
+          "total_assets": 112476000000.0,
+          "total_debt": 42503000000.0,
+          "free_cashflow": 5964000000.0
+        },
+        {
+          "year": "2024",
+          "revenue": 45043000000.0,
+          "net_income": 10590000000.0,
+          "ebitda": 18807000000.0,
+          "total_assets": 78715000000.0,
+          "total_debt": 33644000000.0,
+          "free_cashflow": 414000000.0
+        },
+        {
+          "year": "2023",
+          "revenue": 34124000000.0,
+          "net_income": 5240000000.0,
+          "ebitda": 11852000000.0,
+          "total_assets": 64006300000.0,
+          "total_debt": 25225300000.0,
+          "free_cashflow": -3152000000.0
+        },
+        {
+          "year": "2022",
+          "revenue": 28541400000.0,
+          "net_income": 6244800000.0,
+          "ebitda": 8660500000.0,
+          "total_assets": 49489800000.0,
+          "total_debt": 16238600000.0,
+          "free_cashflow": 4600400000.0
+        },
+        {
+          "year": "2021",
+          "revenue": NaN,
+          "net_income": NaN,
+          "ebitda": NaN,
+          "total_assets": NaN,
+          "total_debt": NaN,
+          "free_cashflow": NaN
+        }
+      ]
+    },
+    {
+      "symbol": "ARM",
+      "name": "Arm Holdings plc",
+      "price": 234.81,
+      "total_score": 65,
+      "pe": 313.08,
+      "growth": 0.263,
+      "margin": 0.17148,
+      "de": 5.912,
+      "implied_growth": 0.5,
+      "scores": {
+        "P/E Ratio": 5,
+        "Revenue Growth": 20,
+        "Profit Margin": 15,
+        "Debt/Equity": 20,
+        "Valuation": 5
+      },
+      "financials": [
+        {
+          "year": "2025",
+          "revenue": 4007000000.0,
+          "net_income": 792000000.0,
+          "ebitda": 1014000000.0,
+          "total_assets": 8932000000.0,
+          "total_debt": 356000000.0,
+          "free_cashflow": 158000000.0
+        },
+        {
+          "year": "2024",
+          "revenue": 3233000000.0,
+          "net_income": 306000000.0,
+          "ebitda": 279000000.0,
+          "total_assets": 7927000000.0,
+          "total_debt": 226000000.0,
+          "free_cashflow": 947000000.0
+        },
+        {
+          "year": "2023",
+          "revenue": 2679000000.0,
+          "net_income": 524000000.0,
+          "ebitda": 848000000.0,
+          "total_assets": 6866000000.0,
+          "total_debt": 221000000.0,
+          "free_cashflow": 646000000.0
+        },
+        {
+          "year": "2022",
+          "revenue": 2703000000.0,
+          "net_income": 549000000.0,
+          "ebitda": 865000000.0,
+          "total_assets": 6510000000.0,
+          "total_debt": 261000000.0,
+          "free_cashflow": 383000000.0
+        }
+      ]
+    },
+    {
+      "symbol": "INTC",
+      "name": "Intel Corporation",
+      "price": 82.57,
+      "total_score": 30,
+      "pe": null,
+      "growth": 0.072,
+      "margin": -0.05904,
+      "de": 36.028,
+      "implied_growth": null,
+      "scores": {
+        "P/E Ratio": 0,
+        "Revenue Growth": 10,
+        "Profit Margin": 5,
+        "Debt/Equity": 15,
+        "Valuation": 0
+      },
+      "financials": [
+        {
+          "year": "2025",
+          "revenue": 52853000000.0,
+          "net_income": -267000000.0,
+          "ebitda": 14354000000.0,
+          "total_assets": 211429000000.0,
+          "total_debt": 46585000000.0,
+          "free_cashflow": -4949000000.0
+        },
+        {
+          "year": "2024",
+          "revenue": 53101000000.0,
+          "net_income": -18756000000.0,
+          "ebitda": 1203000000.0,
+          "total_assets": 196485000000.0,
+          "total_debt": 50011000000.0,
+          "free_cashflow": -15656000000.0
+        },
+        {
+          "year": "2023",
+          "revenue": 54228000000.0,
+          "net_income": 1689000000.0,
+          "ebitda": 11242000000.0,
+          "total_assets": 191572000000.0,
+          "total_debt": 49266000000.0,
+          "free_cashflow": -14279000000.0
+        },
+        {
+          "year": "2022",
+          "revenue": 63054000000.0,
+          "net_income": 8014000000.0,
+          "ebitda": 21299000000.0,
+          "total_assets": 182103000000.0,
+          "total_debt": 42007000000.0,
+          "free_cashflow": -9411000000.0
+        }
+      ]
+    }
+  ]
+}

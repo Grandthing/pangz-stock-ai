@@ -1,0 +1,99 @@
+======================================================================
+  PANGZ Stock Comparison Report
+  วันที่: 2026-04-27
+  จำนวนหุ้น: 4 ตัว
+======================================================================
+
+--- อันดับรวม ---
+
+  #1 AMD      75/100  (Advanced Micro Devices, Inc.)
+  #2 LLY      70/100  (Eli Lilly and Company)
+  #3 ARM      65/100  (Arm Holdings plc)
+  #4 INTC     30/100  (Intel Corporation)
+
+==================================================
+  AMD — Advanced Micro Devices, Inc.
+==================================================
+
+  ราคา: $347.8
+  Score: 75/100
+
+  P/E Ratio            5/20 → P/E 133.3 → แพง
+  Revenue Growth      20/20 → 34.1% → โตเร็วมาก
+  Profit Margin       10/20 → 12.5% → กำไรพอใช้
+  Debt/Equity         20/20 → D/E 6.4% → หนี้น้อย
+  Valuation           20/20 → ตลาดคาด 27% < โตจริง 34.1% → ราคาถูก!
+
+  งบการเงิน:
+    2025: Revenue=$34.64B, NI=$4.33B, FCF=$6.74B
+    2024: Revenue=$25.79B, NI=$1.64B, FCF=$2.40B
+    2023: Revenue=$22.68B, NI=$0.85B, FCF=$1.12B
+    2022: Revenue=$23.60B, NI=$1.32B, FCF=$3.12B
+    2021: Revenue=$nanB, NI=$nanB, FCF=$nanB
+
+  Reverse DCF:
+    Implied Growth: 27%
+
+==================================================
+  LLY — Eli Lilly and Company
+==================================================
+
+  ราคา: $883.96
+  Score: 70/100
+
+  P/E Ratio            5/20 → P/E 38.5 → แพง
+  Revenue Growth      20/20 → 42.6% → โตเร็วมาก
+  Profit Margin       20/20 → 31.7% → กำไรสูงมาก
+  Debt/Equity          5/20 → D/E 165.3% → หนี้สูง
+  Valuation           20/20 → ตลาดคาด 33% < โตจริง 42.6% → ราคาถูก!
+
+  งบการเงิน:
+    2025: Revenue=$65.18B, NI=$20.64B, FCF=$5.96B
+    2024: Revenue=$45.04B, NI=$10.59B, FCF=$0.41B
+    2023: Revenue=$34.12B, NI=$5.24B, FCF=$-3.15B
+    2022: Revenue=$28.54B, NI=$6.24B, FCF=$4.60B
+    2021: Revenue=$nanB, NI=$nanB, FCF=$nanB
+
+  Reverse DCF:
+    Implied Growth: 33%
+
+==================================================
+  ARM — Arm Holdings plc
+==================================================
+
+  ราคา: $234.81
+  Score: 65/100
+
+  P/E Ratio            5/20 → P/E 313.1 → แพง
+  Revenue Growth      20/20 → 26.3% → โตเร็วมาก
+  Profit Margin       15/20 → 17.1% → กำไรดี
+  Debt/Equity         20/20 → D/E 5.9% → หนี้น้อย
+  Valuation            5/20 → ตลาดคาด 50% >> โตจริง 26.3% → แพง
+
+  งบการเงิน:
+    2025: Revenue=$4.01B, NI=$0.79B, FCF=$0.16B
+    2024: Revenue=$3.23B, NI=$0.31B, FCF=$0.95B
+    2023: Revenue=$2.68B, NI=$0.52B, FCF=$0.65B
+    2022: Revenue=$2.70B, NI=$0.55B, FCF=$0.38B
+
+  Reverse DCF:
+    Implied Growth: 50%
+
+==================================================
+  INTC — Intel Corporation
+==================================================
+
+  ราคา: $82.57
+  Score: 30/100
+
+  P/E Ratio            0/20 → ไม่มีข้อมูล
+  Revenue Growth      10/20 → 7.2% → โตปานกลาง
+  Profit Margin        5/20 → -5.9% → กำไรบาง
+  Debt/Equity         15/20 → D/E 36.0% → หนี้ปานกลาง
+  Valuation            0/20 → คำนวณไม่ได้
+
+  งบการเงิน:
+    2025: Revenue=$52.85B, NI=$-0.27B, FCF=$-4.95B
+    2024: Revenue=$53.10B, NI=$-18.76B, FCF=$-15.66B
+    2023: Revenue=$54.23B, NI=$1.69B, FCF=$-14.28B
+    2022: Revenue=$63.05B, NI=$8.01B, FCF=$-9.41B
