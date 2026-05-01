@@ -15,7 +15,7 @@ st.markdown("AI-powered stock analysis — runs 100% locally, zero cost")
 st.sidebar.title("📌 เมนู")
 page = st.sidebar.radio(
     "เลือกฟีเจอร์:",
-    ["🏠 หน้าแรก", "📊 วิเคราะห์หุ้น", "🏆 Batch Ranking", "📈 Technical Chart", "🔄 DCA Backtest", "🎯 Position Sizer"]
+    ["🏠 หน้าแรก", "📊 วิเคราะห์หุ้น", "🏆 Batch Ranking", "📈 Technical Chart", "🔄 DCA Backtest", "🎯 Position Sizer", "📰 TA Analysis"]
 )
 
 # หน้าแรก
@@ -773,4 +773,242 @@ elif page == "🎯 Position Sizer":
         except Exception as e:
             st.error(f"❌ เกิดข้อผิดพลาด: {e}")
 
+elif page == "📰 TA Analysis":
+    st.header("📰 Technical Analysis + Confluence")
+    st.markdown("วิเคราะห์เทคนิค 6 Indicators + หาจุด Confluence อัตโนมัติ")
+
+    # Init session state
+    if "ta_result" not in st.session_state:
+        st.session_state.ta_result = None
+    if "ta_ai_report" not in st.session_state:
+        st.session_state.ta_ai_report = None
+
+    col_input1, col_input2 = st.columns([3, 1])
+    with col_input1:
+        ta_ticker = st.text_input("ชื่อหุ้น", value="META", key="ta_ticker_input").upper().strip()
+    with col_input2:
+        ta_period = st.selectbox("ย้อนหลัง", ["6mo", "1y", "2y"], index=1, key="ta_period_input")
+
+    if st.button("📰 วิเคราะห์ TA", type="primary"):
+        try:
+            from ta_engine.indicators import get_all_indicators
+            from ta_engine.confluence import detect_confluence, build_fib_table
+
+            with st.spinner("กำลังวิเคราะห์..."):
+                indicators = get_all_indicators(ta_ticker, ta_period)
+                confluences = detect_confluence(indicators)
+
+            # เก็บผลลัพธ์ใน Session State
+            st.session_state.ta_result = {
+                "ticker": ta_ticker,
+                "indicators": indicators,
+                "confluences": confluences,
+            }
+            st.session_state.ta_ai_report = None  # Reset AI Report
+
+        except Exception as e:
+            st.error(f"❌ เกิดข้อผิดพลาด: {e}")
+
+    # === แสดงผลลัพธ์ (อ่านจาก session_state) ===
+    if st.session_state.ta_result is not None:
+        import matplotlib as mpl
+        import matplotlib.pyplot as plt
+        mpl.rcParams['font.family'] = 'Tahoma'
+        from ta_engine.confluence import build_fib_table
+
+        result = st.session_state.ta_result
+        ticker_show = result["ticker"]
+        indicators = result["indicators"]
+        confluences = result["confluences"]
+
+        st.markdown("---")
+
+        # Overall Signal
+        overall = indicators["overall"]
+        if overall == "BULLISH":
+            st.success(f"🟢 Overall: **{overall}** (Bullish: {indicators['bullish_count']}, Bearish: {indicators['bearish_count']})")
+        elif overall == "BEARISH":
+            st.error(f"🔴 Overall: **{overall}** (Bullish: {indicators['bullish_count']}, Bearish: {indicators['bearish_count']})")
+        else:
+            st.info(f"⚪ Overall: **{overall}** (Bullish: {indicators['bullish_count']}, Bearish: {indicators['bearish_count']})")
+
+        # Price Metrics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("ราคา", f"${indicators['current_price']}", f"{indicators['change_pct']:+.2f}%")
+        with col2:
+            rsi = indicators["rsi"]
+            st.metric("RSI", f"{rsi.values['current']}")
+        with col3:
+            macd = indicators["macd"]
+            st.metric("MACD Histogram", f"{macd.values['histogram']:.4f}")
+        with col4:
+            bb = indicators["bb"]
+            st.metric("BB %B", f"{bb.values['pct_b']:.1f}%")
+
+        # Tabs
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            "📈 กราฟ + Fibo",
+            "⭐ Confluence",
+            "📊 Indicators",
+            "📐 Fib Table",
+            "🤖 AI Report",
+        ])
+
+        # === Tab 1: กราฟ ===
+        with tab1:
+            df = indicators["df"]
+            fib = indicators["fibonacci"]
+
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8),
+                                             gridspec_kw={"height_ratios": [3, 1]})
+
+            ax1.plot(df.index, df["Close"], color="royalblue", linewidth=1.5, label="Price")
+
+            for name, sma in indicators["sma"].items():
+                if sma.values.get("current"):
+                    sma_series = df["Close"].rolling(int(name.split("_")[1])).mean()
+                    color = "orange" if "50" in name else "purple" if "100" in name else "red"
+                    ax1.plot(df.index, sma_series, color=color, linewidth=1,
+                            label=f"{name} (${sma.values['current']})", linestyle="--")
+
+            if "levels" in fib.values:
+                for level in fib.values["levels"]:
+                    if not level["is_extension"]:
+                        color = "green" if level["role"] == "SUP" else "red"
+                        ax1.axhline(y=level["price"], color=color, linewidth=0.5,
+                                   linestyle=":", alpha=0.7)
+
+            for conf in confluences:
+                color = "green" if conf.role == "SUP" else "red"
+                ax1.axhline(y=conf.price, color=color, linewidth=2, linestyle="-", alpha=0.8)
+                ax1.text(df.index[0], conf.price,
+                        f" {'⭐' * conf.strength} ${conf.price:.0f}",
+                        fontsize=8, fontweight="bold", color=color, va="center")
+
+            ax1.set_title(f"{ticker_show} — ${indicators['current_price']} ({indicators['change_pct']:+.2f}%)",
+                         fontsize=14, fontweight="bold")
+            ax1.set_ylabel("Price (USD)")
+            ax1.legend(loc="upper left", fontsize=8)
+            ax1.grid(True, alpha=0.3)
+
+            colors = ["green" if df["Close"].iloc[i] >= df["Close"].iloc[i-1] else "red"
+                     for i in range(1, len(df))]
+            colors.insert(0, "gray")
+            ax2.bar(df.index, df["Volume"], color=colors, alpha=0.5)
+            ax2.set_ylabel("Volume")
+            ax2.grid(True, alpha=0.3)
+
+            plt.tight_layout()
+            st.pyplot(fig)
+            plt.close()
+
+        # === Tab 2: Confluence ===
+        with tab2:
+            if confluences:
+                st.subheader(f"พบ {len(confluences)} จุด Confluence")
+                for conf in confluences:
+                    stars = "⭐" * conf.strength
+                    if conf.role == "SUP":
+                        st.success(f"{stars} **แนวรับ ${conf.price:,.2f}** ({conf.pct_from_current:+.1f}%) — {' + '.join(conf.components)}")
+                    else:
+                        st.error(f"{stars} **แนวต้าน ${conf.price:,.2f}** ({conf.pct_from_current:+.1f}%) — {' + '.join(conf.components)}")
+            else:
+                st.warning("ไม่พบ Confluence ที่ชัดเจน")
+
+        # === Tab 3: Indicators ===
+        with tab3:
+            st.subheader("📏 Moving Averages")
+            for name, sma in indicators["sma"].items():
+                icon = "🟢" if sma.interpretation == "bullish" else "🔴" if sma.interpretation == "bearish" else "⚪"
+                st.markdown(f"{icon} {sma.detail}")
+
+            st.markdown("---")
+            st.subheader("📊 RSI")
+            rsi = indicators["rsi"]
+            icon = "🟢" if rsi.interpretation == "bullish" else "🔴" if rsi.interpretation == "bearish" else "⚪"
+            st.markdown(f"{icon} {rsi.detail}")
+
+            st.markdown("---")
+            st.subheader("📈 MACD")
+            macd = indicators["macd"]
+            icon = "🟢" if macd.interpretation == "bullish" else "🔴" if macd.interpretation == "bearish" else "⚪"
+            st.markdown(f"{icon} {macd.detail}")
+
+            st.markdown("---")
+            st.subheader("🔔 Bollinger Bands")
+            bb = indicators["bb"]
+            icon = "🟢" if bb.interpretation == "bullish" else "🔴" if bb.interpretation == "bearish" else "⚪"
+            st.markdown(f"{icon} {bb.detail}")
+
+            st.markdown("---")
+            st.subheader("📊 Volume")
+            vol = indicators["volume"]
+            icon = "🟢" if vol.interpretation == "bullish" else "🔴" if vol.interpretation == "bearish" else "⚪"
+            st.markdown(f"{icon} {vol.detail}")
+
+        # === Tab 4: Fib Table ===
+        with tab4:
+            st.subheader("📐 Fibonacci Levels")
+            fib = indicators["fibonacci"]
+            st.markdown(f"**{fib.detail}**")
+            df_fib = build_fib_table(indicators, confluences)
+            if not df_fib.empty:
+                st.dataframe(df_fib, use_container_width=True, hide_index=True)
+
+        # === Tab 5: AI Report ===
+        with tab5:
+            st.subheader("🤖 AI Technical Analysis")
+
+            if st.button("✨ สร้าง AI Report", key="gen_ta_report"):
+                with st.spinner("AI กำลังเขียนรายงาน TA... (30-60 วินาที)"):
+                    import ollama
+
+                    ta_summary = f"""ข้อมูล Technical Analysis ของ {ticker_show}:
+
+ราคาปัจจุบัน: ${indicators['current_price']} ({indicators['change_pct']:+.2f}%)
+Overall Signal: {indicators['overall']}
+
+SMA:
+"""
+                    for name, sma in indicators["sma"].items():
+                        ta_summary += f"  {sma.detail}\n"
+
+                    ta_summary += f"""
+RSI: {indicators['rsi'].detail}
+MACD: {indicators['macd'].detail}
+Bollinger: {indicators['bb'].detail}
+Volume: {indicators['volume'].detail}
+Fibonacci: {indicators['fibonacci'].detail}
+
+Confluence Points:
+"""
+                    for conf in confluences:
+                        ta_summary += f"  {conf.description}\n"
+
+                    prompt = f"""คุณเป็นนักวิเคราะห์เทคนิคมืออาชีพ
+ตอบเป็นภาษาไทย ห้ามใช้ภาษาจีนเด็ดขาด ใช้ศัพท์การเงินอังกฤษได้
+เป็นกันเอง เหมือนเล่าให้เพื่อนฟัง ใช้ Emoji แบ่งหัวข้อ
+
+{ta_summary}
+
+เขียนบทความวิเคราะห์เทคนิคตามหัวข้อนี้:
+
+🌐 สรุปภาพรวม: ราคาอยู่ตรงไหน ทิศทางเป็นยังไง
+🌊 โครงสร้างเทรนด์: SMA บอกอะไร
+📐 Fibonacci & Confluence: "ด่านเหล็ก" อยู่ที่ไหน
+📊 โมเมนตัม: RSI + MACD + Volume
+🎯 สรุป: Bull Case vs Bear Case + จุดเข้า/ออก + Stop Loss + R:R ratio
+"""
+
+                    response = ollama.chat(
+                        model="qwen2.5:14b",
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+
+                    st.session_state.ta_ai_report = response["message"]["content"]
+
+            # แสดง AI Report ถ้ามี
+            if st.session_state.ta_ai_report:
+                st.markdown(st.session_state.ta_ai_report)
         
