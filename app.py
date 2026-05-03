@@ -1,3 +1,4 @@
+import ollama
 import streamlit as st
 
 # ตั้งค่าหน้าเว็บ
@@ -946,6 +947,35 @@ elif page == "📰 TA Analysis":
             vol = indicators["volume"]
             icon = "🟢" if vol.interpretation == "bullish" else "🔴" if vol.interpretation == "bearish" else "⚪"
             st.markdown(f"{icon} {vol.detail}")
+            st.markdown("---")
+            st.subheader("🔔 TD Sequential")
+            td = indicators.get("td_sequential", {})
+            if td:
+                st.markdown(f"**{td.get('interpretation', '')}**")
+
+                col_td1, col_td2 = st.columns(2)
+                with col_td1:
+                    cs = td.get("current_setup")
+                    if cs:
+                        st.metric(
+                            f"Current Setup: {cs.type.upper()}",
+                            f"{cs.count}/9",
+                            "Complete!" if cs.is_complete else "นับอยู่"
+                        )
+
+                with col_td2:
+                    ls = td.get("last_complete_setup")
+                    if ls:
+                        st.metric(
+                            f"Last Complete: {ls.type.upper()} 9",
+                            f"${ls.price:.2f}"
+                        )
+
+                tdst = td.get("tdst", {})
+                if tdst.get("support"):
+                    st.info(f"💡 TDST Support: ${tdst['support']}")
+                if tdst.get("resistance"):
+                    st.warning(f"⚠️ TDST Resistance: ${tdst['resistance']}")
 
         # === Tab 4: Fib Table ===
         with tab4:
@@ -957,48 +987,176 @@ elif page == "📰 TA Analysis":
                 st.dataframe(df_fib, use_container_width=True, hide_index=True)
 
         # === Tab 5: AI Report ===
+        # === Tab 5: AI Report ===
+       # === Tab 5: AI Report ===
         with tab5:
-            st.subheader("🤖 AI Technical Analysis")
+            st.subheader("🤖 AI Technical Analyst Report")
+            st.markdown("ให้นิคกี้ช่วยร้อยเรียงข้อมูลเทคนิคทั้งหมดออกมาเป็นเรื่องราวที่อ่านง่าย")
+
+            include_news = st.checkbox(
+                "📰 รวม News Context (ใช้เวลานานขึ้น 30-60 วิ)",
+                value=True,
+                help="ดึงข่าวล่าสุด + AI สรุป → ทำให้รายงานมี Context สมบูรณ์ขึ้น"
+            )
 
             if st.button("✨ สร้าง AI Report", key="gen_ta_report"):
-                with st.spinner("AI กำลังเขียนรายงาน TA... (30-60 วินาที)"):
+
+                # === Step 1: ดึง News Context (ถ้าเลือก) ===
+                news_context = ""
+                if include_news:
+                    with st.spinner("📰 กำลังดึงข่าวล่าสุด..."):
+                        try:
+                            from ta_engine.news_fetcher import get_news_context
+                            news_data = get_news_context(
+                                ticker_show,
+                                current_change_pct=indicators['change_pct']
+                            )
+
+                            if news_data["news_count"] > 0:
+                                news_context = f"""
+=== บริบทข่าวล่าสุด ({news_data['news_count']} ข่าว) ===
+
+{news_data['summary']}
+"""
+                                earnings = news_data.get("earnings", {})
+                                if earnings.get("next_earnings"):
+                                    news_context += f"\nEarnings ถัดไป: {earnings['next_earnings']}\n"
+                                if earnings.get("eps_surprise_pct") is not None:
+                                    surprise = earnings["eps_surprise_pct"]
+                                    news_context += f"EPS Surprise ล่าสุด: {surprise:+.1f}%\n"
+                        except Exception as e:
+                            st.warning(f"⚠️ ดึงข่าวไม่ได้: {e}")
+
+                # === Step 2: เขียน TA Report ===
+                with st.spinner("🤖 AI กำลังเขียนรายงาน TA... (30-60 วินาที)"):
                     import ollama
 
-                    ta_summary = f"""ข้อมูล Technical Analysis ของ {ticker_show}:
+                    td = indicators.get("td_sequential", {})
+                    td_text = ""
+                    if td:
+                        td_text = f"\nTD Sequential:\n  {td.get('interpretation', '')}\n"
+                        if td.get("tdst"):
+                            tdst = td["tdst"]
+                            if tdst.get("support"):
+                                td_text += f"  TDST Support: USD {tdst['support']}\n"
+                            if tdst.get("resistance"):
+                                td_text += f"  TDST Resistance: USD {tdst['resistance']}\n"
+                        if td.get("last_complete_setup"):
+                            ls = td["last_complete_setup"]
+                            td_text += f"  Last Complete: {ls.type.upper()} 9 ที่ USD {ls.price:.2f}\n"
 
-ราคาปัจจุบัน: ${indicators['current_price']} ({indicators['change_pct']:+.2f}%)
+                    cur_price = indicators["current_price"]
+
+                    ta_summary = f"""ข้อมูลเทคนิคของ {ticker_show}:
+
+ราคาปัจจุบัน: USD {cur_price} ({indicators['change_pct']:+.2f}%)
 Overall Signal: {indicators['overall']}
 
-SMA:
+=== Trend Structure ===
 """
                     for name, sma in indicators["sma"].items():
-                        ta_summary += f"  {sma.detail}\n"
+                        slope = sma.values.get("slope_pct", 0)
+                        slope_text = f"slope +{slope}%" if slope > 0 else f"slope {slope}%"
+                        ta_summary += f"  {name}: USD {sma.values['current']} ({slope_text}) — {sma.detail}\n"
 
                     ta_summary += f"""
+=== Momentum ===
 RSI: {indicators['rsi'].detail}
 MACD: {indicators['macd'].detail}
-Bollinger: {indicators['bb'].detail}
-Volume: {indicators['volume'].detail}
-Fibonacci: {indicators['fibonacci'].detail}
 
-Confluence Points:
+=== Volatility ===
+{indicators['bb'].detail}
+
+=== Volume ===
+{indicators['volume'].detail}
+
+=== Fibonacci ===
+{indicators['fibonacci'].detail}
+{td_text}
+=== Confluence Points ===
 """
                     for conf in confluences:
                         ta_summary += f"  {conf.description}\n"
 
-                    prompt = f"""คุณเป็นนักวิเคราะห์เทคนิคมืออาชีพ
-ตอบเป็นภาษาไทย ห้ามใช้ภาษาจีนเด็ดขาด ใช้ศัพท์การเงินอังกฤษได้
-เป็นกันเอง เหมือนเล่าให้เพื่อนฟัง ใช้ Emoji แบ่งหัวข้อ
+                    if not confluences:
+                        ta_summary += "  ไม่พบ Confluence ชัดเจน\n"
+
+                    if news_context:
+                        ta_summary += news_context
+
+                    # === Few-shot Example ===
+                    example_article = """
+=== ตัวอย่างบทความที่ดี (ใช้เป็น reference) ===
+
+ภาพรวมโครงสร้าง: ARM ตอนนี้อยู่ในช่วง pullback หลังขาขึ้นชันแบบ parabolic จาก Low USD 111.26 ขึ้นไปทำ peak USD 243.00 ปลาย เม.ย. รวมขาขึ้นรอบนี้บวกกว่า 118% ในเวลา ~3 เดือน ปัจจุบันราคา USD 201.69 ย่อจาก peak ลงมา ~17% ซึ่งถือว่าเป็น healthy correction หลังวิ่งแรงค่ะ
+
+Moving Average Story: ฝั่ง Moving Average ภาพรวมเป็น bullish alignment ที่สมบูรณ์ ราคายืนเหนือทั้ง SMA50 (USD 146.49), SMA100 (USD 131.95) และ SMA200 (USD 140.68) โดย SMA50 ยกตัวขึ้นเหนือ SMA200 เรียบร้อย (Golden Cross เกิดแล้วช่วงต้นเดือน เม.ย.) ระยะห่างระหว่างราคากับ SMA50 ยังกว้างมาก (~38% เหนือเส้น) สะท้อนว่าราคายัง overextended การพักตัวเข้าหา SMA50 จะช่วยให้โครงสร้างกลับมาสมดุลค่ะ
+
+Momentum Synthesis: โมเมนตัมจาก RSI(14) อยู่ที่ 63.86 ลดจากระดับ peak ที่เกิน 80 ก่อนหน้านี้ ถือเป็น healthy cooling-off MACD histogram ลดจาก peak ลงมาที่ +3.36 (momentum loss) Volume แท่งช่วงปลาย เม.ย. มี volume spike ระดับ ~100M ลักษณะคลาสสิกของ climactic volume / blow-off top ที่มักตามมาด้วย distribution phase ค่ะ
+
+📋 Trading Strategy:
+
+✅ Bull Case: ราคายืนเหนือ Fib 38.2%, TD Buy Setup 9 ติดในโซนแนวรับ, RSI กลับขึ้นเหนือ MA
+
+❌ Bear Case: หลุด USD 161.58 (Golden Pocket), Volume distribution ต่อเนื่อง
+
+🎯 Entry Zone: USD 177-192 (Fibo 38.2-50%) — โซน mean reversion ที่ R:R ดีกว่าราคาปัจจุบันมาก
+
+🛑 Stop Loss: USD 175 (ใต้ swing low + Buffer 1%)
+
+🏆 Targets:
+- T1: USD 211 (Fib 23.6%)
+- T2: USD 243 (Peak เดิม)
+- T3: USD 260-278 (Harmonic Reversal)
+
+📊 R:R Calculation (Entry USD 185):
+- Risk = USD 10
+- T1: R:R = 1:2.6 ✅
+- T2: R:R = 1:5.8 ✅
+- T3: R:R = 1:8.0 ✅
+
+⚠️ Risk: Volume distribution exhaustion, Bollinger expansion, Earnings sell-the-news risk
+"""
+
+                    prompt = f"""คุณคือนักวิเคราะห์เทคนิคมืออาชีพระดับ Hedge Fund Analyst ที่ชื่อว่า "นิคกี้"
+ตอบเป็นภาษาไทยเท่านั้น ห้ามใช้ภาษาจีน/ญี่ปุ่นเด็ดขาด
+
+🎓 ก่อนเริ่มเขียน — ศึกษาตัวอย่างบทความระดับมืออาชีพนี้ก่อน:
+
+{example_article}
+
+⭐ สิ่งที่ต้องเลียนแบบจากตัวอย่าง:
+1. การเล่าเรื่อง "อดีต → ปัจจุบัน → อนาคต" ที่ไหลลื่น
+2. การเชื่อมโยง Indicators (RSI bearish cross + MACD momentum loss + climactic volume = exhaustion)
+3. ศัพท์มืออาชีพ: blow-off top, shallow retracement, mean reversion, exhaustion signal
+4. ใช้ "USD" ไม่ใช่ "$"
+5. R:R Calculation ครบ 3 Targets
+
+🚨 กฎสำคัญ:
+1. Tone: เป็นมิตร ลงท้ายด้วย "ค่ะ" หรือ "นะคะ" เสมอ
+2. ตัวเลข: ใช้ "USD" เว้นช่องว่างก่อนและหลัง
+3. ถ้ามี "บริบทข่าว" ให้นำมาผสมในการวิเคราะห์ (เชื่อมโยงข่าวกับทรงกราฟ)
+4. ไม่มีข่าว = วิเคราะห์เฉพาะทรงกราฟ ห้ามมโน
+
+ตอนนี้ — เขียนบทความวิเคราะห์เทคนิคในสไตล์เดียวกันนี้:
 
 {ta_summary}
 
-เขียนบทความวิเคราะห์เทคนิคตามหัวข้อนี้:
+📝 โครงสร้าง:
+1. ภาพรวมโครงสร้าง (ถ้ามีข่าว อธิบายว่าข่าวสอดคล้องกับทรงกราฟอย่างไร)
+2. Moving Average Story
+3. Volatility Context
+4. Momentum Synthesis
+5. Fibonacci & Confluence Map
+6. TD Sequential Read
+7. 📋 Trading Strategy (Bull/Bear + Entry/Stop/Targets + R:R 3 Targets)
+8. ⚠️ Risk Warning (รวม risk จากข่าวด้วยถ้ามี)
 
-🌐 สรุปภาพรวม: ราคาอยู่ตรงไหน ทิศทางเป็นยังไง
-🌊 โครงสร้างเทรนด์: SMA บอกอะไร
-📐 Fibonacci & Confluence: "ด่านเหล็ก" อยู่ที่ไหน
-📊 โมเมนตัม: RSI + MACD + Volume
-🎯 สรุป: Bull Case vs Bear Case + จุดเข้า/ออก + Stop Loss + R:R ratio
+หลักการ:
+- Stop Loss มี Buffer 1-2% ห้ามวางพอดี
+- Entry Zone โซนแคบ ที่ติดแนวรับ
+- R:R ครบ 3 Targets
+- ถ้ามีข่าว Earnings/CapEx — นำมาประเมินความเสี่ยงเพิ่ม
 """
 
                     response = ollama.chat(
@@ -1011,4 +1169,3 @@ Confluence Points:
             # แสดง AI Report ถ้ามี
             if st.session_state.ta_ai_report:
                 st.markdown(st.session_state.ta_ai_report)
-        

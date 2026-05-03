@@ -473,6 +473,9 @@ def get_all_indicators(ticker: str, period: str = "1y") -> dict:
     bb = calculate_bollinger(df)
     vol = calculate_volume(df)
     fib = calculate_fibonacci(df)
+    # TD Sequential
+    from ta_engine.td_sequential import analyze_td_sequential
+    td = analyze_td_sequential(df)
 
     # Overall Score
     signals = [
@@ -505,7 +508,8 @@ def get_all_indicators(ticker: str, period: str = "1y") -> dict:
         "macd": macd,
         "bb": bb,
         "volume": vol,
-        "fibonacci": fib,
+       "fibonacci": fib,
+        "td_sequential": td,
         "df": df,
     }
 
