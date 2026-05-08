@@ -18,17 +18,13 @@ class ConfluencePoint:
     description: str
 
 
-def detect_confluence(indicators: dict, threshold_pct: float = 1.5) -> List[ConfluencePoint]:
+def detect_confluence(indicators: dict, threshold_pct: float = 3.0) -> List[ConfluencePoint]:
     """
-    หาจุดที่หลาย Indicator อยู่ใกล้กัน (ภายใน threshold_pct%)
-
-    threshold_pct = 1.5 หมายถึง ถ้า 2 ระดับราคาห่างกันไม่เกิน 1.5%
-                    ถือว่าเป็น Confluence
+    หาจุดที่หลาย Indicator อยู่ใกล้กัน
+    threshold_pct = 3.0% (เพิ่มจาก 1.5% เพื่อจับ Confluence ระยะไกล)
     """
 
     current_price = indicators["current_price"]
-
-    # รวบรวมระดับราคาสำคัญทั้งหมด
     price_levels = []
 
     # 1. SMA Levels
@@ -47,22 +43,34 @@ def detect_confluence(indicators: dict, threshold_pct: float = 1.5) -> List[Conf
         price_levels.append({"price": bb.values["middle"], "label": "BB Middle", "source": "Bollinger"})
         price_levels.append({"price": bb.values["lower"], "label": "BB Lower", "source": "Bollinger"})
 
-    # 3. Fibonacci Levels
+    # 3. Fibonacci Levels (เฉพาะ Retracement ห้ามใส่ Extension เพราะอาจติดลบ)
     fib = indicators["fibonacci"]
     if "levels" in fib.values:
         for level in fib.values["levels"]:
+            # === Bug Fix 1: ข้าม Extension ที่ราคาติดลบ ===
+            if level["price"] <= 0:
+                continue
+
+            # === Bug Fix 2: ข้าม Extension ที่ห่างจากราคาเกิน 50% ===
+            if level["is_extension"] and abs(level["distance_pct"]) > 50:
+                continue
+
             price_levels.append({
                 "price": level["price"],
                 "label": f"Fib {level['label']}",
                 "source": "Fibonacci",
             })
 
-    # หา Confluence: จับคู่ทุกระดับราคาที่ใกล้กัน
+    # หา Confluence
     confluences = []
     used = set()
 
     for i, level_a in enumerate(price_levels):
         if i in used:
+            continue
+
+        # === Bug Fix 3: ข้ามราคาที่ <= 0 ===
+        if level_a["price"] <= 0:
             continue
 
         cluster = [level_a]
@@ -72,36 +80,40 @@ def detect_confluence(indicators: dict, threshold_pct: float = 1.5) -> List[Conf
             if j <= i or j in used:
                 continue
 
-            # เช็คว่าอยู่ใกล้กันไหม
-            if level_a["price"] == 0:
+            if level_b["price"] <= 0:
                 continue
 
+            # คำนวณระยะห่างเป็น % จากราคา A
             diff_pct = abs(level_a["price"] - level_b["price"]) / level_a["price"] * 100
 
             if diff_pct <= threshold_pct:
-                # ต้องมาจากคนละ Source (SMA+Fib ดี, SMA+SMA ไม่นับ)
+                # ต้องมาจากคนละ Source
                 if level_b["source"] != level_a["source"]:
                     cluster.append(level_b)
                     cluster_indices.add(j)
 
-        # ต้องมีอย่างน้อย 2 components จากต่าง Source
+        # ต้องมีอย่างน้อย 2 components
         if len(cluster) >= 2:
             used.update(cluster_indices)
 
             avg_price = round(sum(c["price"] for c in cluster) / len(cluster), 2)
+
+            # === Bug Fix 4: ข้าม Confluence ที่ราคา <= 0 ===
+            if avg_price <= 0:
+                continue
+
             pct_from_current = round(((avg_price / current_price) - 1) * 100, 2)
             role = "SUP" if avg_price < current_price else "RES"
             components = [c["label"] for c in cluster]
             strength = min(len(cluster), 3)
 
-            # สร้างคำอธิบาย
             comp_text = " + ".join(components)
             stars = "⭐" * strength
 
             if role == "SUP":
-                desc = f"{stars} แนวรับที่ ${avg_price} ({comp_text}) ห่าง {pct_from_current:.1f}%"
+                desc = f"{stars} แนวรับที่ USD {avg_price} ({comp_text}) ห่าง {pct_from_current:.1f}%"
             else:
-                desc = f"{stars} แนวต้านที่ ${avg_price} ({comp_text}) ห่าง +{pct_from_current:.1f}%"
+                desc = f"{stars} แนวต้านที่ USD {avg_price} ({comp_text}) ห่าง +{pct_from_current:.1f}%"
 
             confluences.append(ConfluencePoint(
                 price=avg_price,
@@ -112,42 +124,44 @@ def detect_confluence(indicators: dict, threshold_pct: float = 1.5) -> List[Conf
                 description=desc,
             ))
 
-    # เรียงตามระยะห่างจากราคาปัจจุบัน
     confluences.sort(key=lambda x: abs(x.pct_from_current))
 
     return confluences
 
-
 def build_fib_table(indicators: dict, confluences: List[ConfluencePoint]) -> pd.DataFrame:
     """สร้างตาราง Fib + Confluence แบบสวยงาม"""
 
-    fib = indicators["fibonacci"]
-    current_price = indicators["current_price"]
-
-    if "levels" not in fib.values:
+    fib = indicators.get("fibonacci", {})
+    if not fib or "levels" not in fib.values:
         return pd.DataFrame()
 
     rows = []
     for level in fib.values["levels"]:
+        
+        # ข้าม Extension ที่ราคาติดลบ หรือห่างเกิน 50% แบบเดียวกับด้านบน
+        if level["price"] <= 0 or (level.get("is_extension") and abs(level["distance_pct"]) > 50):
+            continue
+
         # เช็คว่า Level นี้มี Confluence ไหม
         confluence_text = ""
         strength = 0
 
         for conf in confluences:
-            diff = abs(conf.price - level["price"]) / level["price"] * 100
-            if diff < 1.5:
-                confluence_text = " + ".join(
-                    [c for c in conf.components if "Fib" not in c]
-                )
-                strength = conf.strength
-                break
+            if level["price"] > 0:
+                diff = abs(conf.price - level["price"]) / level["price"] * 100
+                if diff < 1.5:  # ใช้ 1.5% เพื่อจับคู่ Fibo กับ Confluence ให้ตรงกัน
+                    confluence_text = " + ".join(
+                        [c for c in conf.components if "Fib" not in c]
+                    )
+                    strength = conf.strength
+                    break
 
         stars = "⭐" * strength if strength > 0 else ""
-        ext = "Ext" if level["is_extension"] else ""
+        ext = "Ext" if level.get("is_extension") else ""
 
         rows.append({
             "Level": level["label"],
-            "ราคา": f"${level['price']:,.2f}",
+            "ราคา": f"USD {level['price']:,.2f}",
             "ห่าง %": f"{level['distance_pct']:+.1f}%",
             "S/R": level["role"],
             "Confluence": confluence_text,
@@ -165,7 +179,7 @@ def build_fib_table(indicators: dict, confluences: List[ConfluencePoint]) -> pd.
 if __name__ == "__main__":
     from indicators import get_all_indicators
 
-    ticker = "META"
+    ticker = "V"
     print(f"{'=' * 60}")
     print(f"  ⭐ Confluence Detection: {ticker}")
     print(f"{'=' * 60}\n")

@@ -177,8 +177,17 @@ def summarize_news_with_ai(news: List[Dict], ticker: str, current_change_pct: fl
 """
 
         response = ollama.chat(
-            model="qwen2.5:14b",
-            messages=[{"role": "user", "content": prompt}]
+            model="gpt-oss:20b",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a financial news summarizer. ALWAYS respond in Thai language only. NEVER use Chinese characters."
+                },
+                {"role": "user", "content": prompt}
+            ],
+            options={
+                "temperature": 0.3,
+            }
         )
 
         return response["message"]["content"]

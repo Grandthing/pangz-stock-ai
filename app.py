@@ -16,7 +16,7 @@ st.markdown("AI-powered stock analysis — runs 100% locally, zero cost")
 st.sidebar.title("📌 เมนู")
 page = st.sidebar.radio(
     "เลือกฟีเจอร์:",
-    ["🏠 หน้าแรก", "📊 วิเคราะห์หุ้น", "🏆 Batch Ranking", "📈 Technical Chart", "🔄 DCA Backtest", "🎯 Position Sizer", "📰 TA Analysis"]
+    ["🏠 หน้าแรก", "📊 วิเคราะห์หุ้น", "🏆 Batch Ranking", "📈 Technical Chart", "🔄 DCA Backtest", "🎯 Position Sizer", "📰 TA Analysis", "🔍 Quality Screener"]
 )
 
 # หน้าแรก
@@ -30,7 +30,7 @@ if page == "🏠 หน้าแรก":
     with col2:
         st.metric("ค่าใช้จ่าย", "$0/เดือน")
     with col3:
-        st.metric("AI Model", "Qwen 2.5:14b")
+        st.metric("AI Model", "gpt-oss:20b")
 
     st.markdown("---")
     st.markdown("""
@@ -171,7 +171,7 @@ elif page == "📊 วิเคราะห์หุ้น":
 
                 import pandas as pd
                 df_fin = pd.DataFrame(fin_rows)
-                st.dataframe(df_fin, use_container_width=True, hide_index=True)
+                st.dataframe(df_fin, width="stretch", hide_index=True)
 
                 # === Reverse DCF ===
                 st.markdown("---")
@@ -291,7 +291,7 @@ elif page == "🏆 Batch Ranking":
                 })
 
             df_rank = pd.DataFrame(rows)
-            st.dataframe(df_rank, use_container_width=True, hide_index=True)
+            st.dataframe(df_rank, width="stretch", hide_index=True)
 
             # === คะแนนรายเกณฑ์ ===
             st.markdown("---")
@@ -305,7 +305,7 @@ elif page == "🏆 Batch Ranking":
                 score_rows.append(row)
 
             df_scores = pd.DataFrame(score_rows)
-            st.dataframe(df_scores, use_container_width=True, hide_index=True)
+            st.dataframe(df_scores, width="stretch", hide_index=True)
 
             # === สรุปสถิติ ===
             st.markdown("---")
@@ -382,9 +382,20 @@ elif page == "🏆 Batch Ranking":
 """
 
                 response = ollama.chat(
-                    model="qwen2.5:14b",
-                    messages=[{"role": "user", "content": prompt}]
-                )
+                        model="gpt-oss:20b",
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": "You are a Hedge Fund Technical Analyst. ALWAYS respond in Thai language only (ภาษาไทยเท่านั้น). NEVER use Chinese, Japanese, or Korean characters. Use ONLY numbers from the provided data — never invent prices, RSI, or any technical values. Always end Thai sentences with 'ค่ะ' or 'นะคะ'."
+                            },
+                            {"role": "user", "content": prompt}
+                        ],
+                        options={
+                            "temperature": 0.3,
+                            "num_ctx": 8192,
+                            "num_predict": 3000,
+                        }
+                    )
 
                 st.markdown(response["message"]["content"])
 elif page == "📈 Technical Chart":
@@ -655,7 +666,7 @@ elif page == "🎯 Position Sizer":
             })
 
         df_holdings = pd.DataFrame(holdings_rows)
-        st.dataframe(df_holdings, use_container_width=True, hide_index=True)
+        st.dataframe(df_holdings, width="stretch", hide_index=True)
 
         # Sector Breakdown
         sector_exp = get_sector_exposure(holdings, portfolio_value)
@@ -761,7 +772,7 @@ elif page == "🎯 Position Sizer":
                     })
 
                 df_tranches = pd.DataFrame(tranche_rows)
-                st.dataframe(df_tranches, use_container_width=True, hide_index=True)
+                st.dataframe(df_tranches, width="stretch", hide_index=True)
 
                 st.info(f"""
                 💡 **วิธีใช้ Tranche Plan:**
@@ -884,7 +895,7 @@ elif page == "📰 TA Analysis":
                 color = "green" if conf.role == "SUP" else "red"
                 ax1.axhline(y=conf.price, color=color, linewidth=2, linestyle="-", alpha=0.8)
                 ax1.text(df.index[0], conf.price,
-                        f" {'⭐' * conf.strength} ${conf.price:.0f}",
+                        f" {'*' * conf.strength} ${conf.price:.0f}",
                         fontsize=8, fontweight="bold", color=color, va="center")
 
             ax1.set_title(f"{ticker_show} — ${indicators['current_price']} ({indicators['change_pct']:+.2f}%)",
@@ -984,7 +995,7 @@ elif page == "📰 TA Analysis":
             st.markdown(f"**{fib.detail}**")
             df_fib = build_fib_table(indicators, confluences)
             if not df_fib.empty:
-                st.dataframe(df_fib, use_container_width=True, hide_index=True)
+                st.dataframe(df_fib, width="stretch", hide_index=True)
 
         # === Tab 5: AI Report ===
         # === Tab 5: AI Report ===
@@ -1047,7 +1058,16 @@ elif page == "📰 TA Analysis":
 
                     cur_price = indicators["current_price"]
 
-                    ta_summary = f"""ข้อมูลเทคนิคของ {ticker_show}:
+                    # ดึงชื่อเต็มของหุ้น
+                    try:
+                        import yfinance as yf
+                        company_name = yf.Ticker(ticker_show).info.get("longName", ticker_show)
+                    except:
+                        company_name = ticker_show
+
+                    ta_summary = f"""ข้อมูลเทคนิคของ {company_name} ({ticker_show}):
+ใช้ชื่อย่อ "{ticker_show}" ในบทความ ห้ามแต่งชื่ออื่น เช่น "Vstock", "ARMstock"
+
 
 ราคาปัจจุบัน: USD {cur_price} ({indicators['change_pct']:+.2f}%)
 Overall Signal: {indicators['overall']}
@@ -1086,86 +1106,463 @@ MACD: {indicators['macd'].detail}
 
                     # === Few-shot Example ===
                     example_article = """
-=== ตัวอย่างบทความที่ดี (ใช้เป็น reference) ===
+=== ตัวอย่างสไตล์การเขียน (ใช้สำหรับ Style เท่านั้น ห้ามนำตัวเลขมาใช้) ===
 
-ภาพรวมโครงสร้าง: ARM ตอนนี้อยู่ในช่วง pullback หลังขาขึ้นชันแบบ parabolic จาก Low USD 111.26 ขึ้นไปทำ peak USD 243.00 ปลาย เม.ย. รวมขาขึ้นรอบนี้บวกกว่า 118% ในเวลา ~3 เดือน ปัจจุบันราคา USD 201.69 ย่อจาก peak ลงมา ~17% ซึ่งถือว่าเป็น healthy correction หลังวิ่งแรงค่ะ
+[ตัวอย่างนี้เป็นหุ้นสมมุติ "XYZ" ตัวเลขทั้งหมดสมมุติ]
 
-Moving Average Story: ฝั่ง Moving Average ภาพรวมเป็น bullish alignment ที่สมบูรณ์ ราคายืนเหนือทั้ง SMA50 (USD 146.49), SMA100 (USD 131.95) และ SMA200 (USD 140.68) โดย SMA50 ยกตัวขึ้นเหนือ SMA200 เรียบร้อย (Golden Cross เกิดแล้วช่วงต้นเดือน เม.ย.) ระยะห่างระหว่างราคากับ SMA50 ยังกว้างมาก (~38% เหนือเส้น) สะท้อนว่าราคายัง overextended การพักตัวเข้าหา SMA50 จะช่วยให้โครงสร้างกลับมาสมดุลค่ะ
+ภาพรวมโครงสร้าง: XYZ อยู่ในช่วง pullback หลังขาขึ้นชันแบบ parabolic จาก Low [PRICE_LOW] ขึ้นไปทำ peak [PRICE_PEAK] รวมขาขึ้นรอบนี้บวกกว่า [GAIN_PCT] ในเวลา [DURATION] ปัจจุบันราคา [CURRENT_PRICE] ย่อจาก peak ลงมา [DROP_PCT] ซึ่งถือว่าเป็น healthy correction หลังวิ่งแรงค่ะ
 
-Momentum Synthesis: โมเมนตัมจาก RSI(14) อยู่ที่ 63.86 ลดจากระดับ peak ที่เกิน 80 ก่อนหน้านี้ ถือเป็น healthy cooling-off MACD histogram ลดจาก peak ลงมาที่ +3.36 (momentum loss) Volume แท่งช่วงปลาย เม.ย. มี volume spike ระดับ ~100M ลักษณะคลาสสิกของ climactic volume / blow-off top ที่มักตามมาด้วย distribution phase ค่ะ
+Moving Average Story: ฝั่ง Moving Average ภาพรวมเป็น bullish alignment ที่สมบูรณ์ ราคายืนเหนือทั้ง SMA50, SMA100 และ SMA200 โดย SMA50 ยกตัวขึ้นเหนือ SMA200 (Golden Cross active) ระยะห่างระหว่างราคากับ SMA50 [DISTANCE_PCT] สะท้อนว่าราคายัง overextended การพักตัวเข้าหา SMA50 จะช่วยให้โครงสร้างกลับมาสมดุลค่ะ
+
+Momentum Synthesis: โมเมนตัมจาก RSI(14) อยู่ที่ระดับ [RSI_VALUE] ลดจาก peak ก่อนหน้านี้ ถือเป็น healthy cooling-off MACD histogram ลดลง (momentum loss) Volume แท่งช่วงล่าสุดมี volume spike ลักษณะคลาสสิกของ climactic volume / blow-off top ที่มักตามมาด้วย distribution phase ค่ะ
 
 📋 Trading Strategy:
 
-✅ Bull Case: ราคายืนเหนือ Fib 38.2%, TD Buy Setup 9 ติดในโซนแนวรับ, RSI กลับขึ้นเหนือ MA
+✅ Bull Case: ราคายืนเหนือ Confluence ⭐⭐⭐, TD Buy Setup ติดในโซนแนวรับ, RSI กลับขึ้นเหนือ MA
 
-❌ Bear Case: หลุด USD 161.58 (Golden Pocket), Volume distribution ต่อเนื่อง
+❌ Bear Case: หลุด Confluence ⭐⭐⭐ (Golden Pocket), Volume distribution ต่อเนื่อง
 
-🎯 Entry Zone: USD 177-192 (Fibo 38.2-50%) — โซน mean reversion ที่ R:R ดีกว่าราคาปัจจุบันมาก
+🎯 Entry Zone: ใกล้ ⭐⭐⭐ Support — โซน mean reversion ที่ R:R ดี
 
-🛑 Stop Loss: USD 175 (ใต้ swing low + Buffer 1%)
+🛑 Stop Loss: ใต้ ⭐⭐⭐ Support + Buffer 1-2%
 
 🏆 Targets:
-- T1: USD 211 (Fib 23.6%)
-- T2: USD 243 (Peak เดิม)
-- T3: USD 260-278 (Harmonic Reversal)
+- T1: ⭐⭐⭐ Resistance ใกล้สุด
+- T2: SMA200 + Fib 61.8%
+- T3: ATH หรือ Peak เดิม
 
-📊 R:R Calculation (Entry USD 185):
-- Risk = USD 10
-- T1: R:R = 1:2.6 ✅
-- T2: R:R = 1:5.8 ✅
-- T3: R:R = 1:8.0 ✅
+📊 R:R Calculation:
+Entry = กลางโซน
+Risk = |Entry - Stop|
+T1: R:R = 1:[X] ✅
+T2: R:R = 1:[Y] ✅
+T3: R:R = 1:[Z] ✅
 
 ⚠️ Risk: Volume distribution exhaustion, Bollinger expansion, Earnings sell-the-news risk
+
+=== จบตัวอย่าง — ตอนนี้ใช้ "ข้อมูลจริง" ด้านล่างเขียนบทความใหม่ ===
 """
 
                     prompt = f"""คุณคือนักวิเคราะห์เทคนิคมืออาชีพระดับ Hedge Fund Analyst ที่ชื่อว่า "นิคกี้"
 ตอบเป็นภาษาไทยเท่านั้น ห้ามใช้ภาษาจีน/ญี่ปุ่นเด็ดขาด
 
-🎓 ก่อนเริ่มเขียน — ศึกษาตัวอย่างบทความระดับมืออาชีพนี้ก่อน:
+═══════════════════════════════════════════
+🎓 ตัวอย่างบทความระดับมืออาชีพ (เพื่อศึกษาสไตล์)
+═══════════════════════════════════════════
 
 {example_article}
 
-⭐ สิ่งที่ต้องเลียนแบบจากตัวอย่าง:
-1. การเล่าเรื่อง "อดีต → ปัจจุบัน → อนาคต" ที่ไหลลื่น
-2. การเชื่อมโยง Indicators (RSI bearish cross + MACD momentum loss + climactic volume = exhaustion)
-3. ศัพท์มืออาชีพ: blow-off top, shallow retracement, mean reversion, exhaustion signal
-4. ใช้ "USD" ไม่ใช่ "$"
-5. R:R Calculation ครบ 3 Targets
+⚠️ **คำเตือน — แยกข้อมูล 2 ส่วน**:
 
-🚨 กฎสำคัญ:
-1. Tone: เป็นมิตร ลงท้ายด้วย "ค่ะ" หรือ "นะคะ" เสมอ
-2. ตัวเลข: ใช้ "USD" เว้นช่องว่างก่อนและหลัง
-3. ถ้ามี "บริบทข่าว" ให้นำมาผสมในการวิเคราะห์ (เชื่อมโยงข่าวกับทรงกราฟ)
-4. ไม่มีข่าว = วิเคราะห์เฉพาะทรงกราฟ ห้ามมโน
+ตัวอย่างด้านบนคือ "ARM" — ใช้เป็น reference สำหรับ:
+  ✅ สไตล์การเขียน (storytelling, flow, voice)
+  ✅ โครงสร้างบทความ (8 หัวข้อ)
+  ✅ ศัพท์มืออาชีพที่ใช้
 
-ตอนนี้ — เขียนบทความวิเคราะห์เทคนิคในสไตล์เดียวกันนี้:
+⛔ ห้ามใช้สำหรับ:
+  ❌ ตัวเลขราคา (USD 111.26, 243.00, 201.69 — เหล่านี้คือ ARM ไม่ใช่หุ้นนี้!)
+  ❌ วันที่เหตุการณ์ (Death/Golden Cross, Setup 9 dates)
+  ❌ RSI/MACD/Volume values
+  ❌ Bullish/Bearish status
+  ❌ Fibonacci levels
+
+🔴 **ตัวเลขและสถานะทุกอย่าง ต้องมาจากข้อมูลด้านล่างเท่านั้น**
+
+═══════════════════════════════════════════
+📊 ข้อมูลจริงที่ต้องวิเคราะห์ (แหล่งเดียว)
+═══════════════════════════════════════════
 
 {ta_summary}
 
-📝 โครงสร้าง:
-1. ภาพรวมโครงสร้าง (ถ้ามีข่าว อธิบายว่าข่าวสอดคล้องกับทรงกราฟอย่างไร)
-2. Moving Average Story
-3. Volatility Context
-4. Momentum Synthesis
-5. Fibonacci & Confluence Map
-6. TD Sequential Read
-7. 📋 Trading Strategy (Bull/Bear + Entry/Stop/Targets + R:R 3 Targets)
-8. ⚠️ Risk Warning (รวม risk จากข่าวด้วยถ้ามี)
+═══════════════════════════════════════════
+📝 โครงสร้างบทความ (ต้องมีครบ 8 หัวข้อ ห้ามขาด)
+═══════════════════════════════════════════
 
-หลักการ:
-- Stop Loss มี Buffer 1-2% ห้ามวางพอดี
-- Entry Zone โซนแคบ ที่ติดแนวรับ
-- R:R ครบ 3 Targets
-- ถ้ามีข่าว Earnings/CapEx — นำมาประเมินความเสี่ยงเพิ่ม
+✅ **1. ภาพรวมโครงสร้าง** (4-5 ประโยค) — บังคับเป็นหัวข้อแรก!
+   - เริ่มจากเล่า "เรื่องราว" ของหุ้น (ห้ามเริ่มที่หัวข้อ Moving Average)
+   - ราคาปัจจุบัน, change %, อยู่ในช่วง pullback/breakout/consolidation
+   - ถ้ามีบริบทข่าว ให้ผสมเข้ามา
+
+✅ **2. Moving Average Story** (4-5 ประโยค)
+   - MA stacking ตามข้อมูลจริง (bullish/bearish alignment)
+   - Golden/Death Cross: ใช้คำว่า "ตามข้อมูล active" หรือ "ดูจาก SMA50 vs SMA200"
+   - ห้ามมโนวันที่เกิด Cross ที่ไม่มีในข้อมูล!
+   - ระยะห่างราคาจาก SMA50 (ใช้ slope_pct จากข้อมูลจริง)
+   - Mean reversion target
+
+✅ **3. Volatility Context** (3-4 ประโยค)
+   - Bollinger Band: ใช้ค่า %B จริงจากข้อมูล (ไม่ใช่ -0.6 หรือมโน)
+   - Squeeze/Expansion ตามที่ระบบบอก
+   - แท่งทะลุ band ไหม
+
+✅ **4. Momentum Synthesis** (5-6 ประโยค)
+   - RSI ใช้ค่าจริง (ดูในข้อมูล)
+   - MACD ตามข้อมูลจริง
+   - Volume ratio ตามข้อมูลจริง
+   - รวมเป็นเรื่องเดียว เช่น "RSI cooling-off + MACD momentum loss + Volume spike = exhaustion"
+
+✅ **5. Fibonacci & Confluence Map** (5-6 ประโยค) — สำคัญที่สุด!
+   🚨 ใช้ตัวเลข Confluence "ตามที่ระบบให้มา" เท่านั้น ห้ามแต่ง!
+   - ระบุทุก Confluence Point พร้อม Strength (⭐, ⭐⭐, ⭐⭐⭐)
+   - ⭐⭐⭐ = "Triple Confluence" — เน้นย้ำ
+   - บอกว่าราคาถูกขังระหว่างจุดไหน (กรอบ X%)
+   - shallow vs deep retracement บอกความแข็งแรง trend
+
+✅ **6. TD Sequential Read** (3-4 ประโยค)
+   - Setup ปัจจุบันนับถึงไหน (ใช้ค่าจริง ไม่มโน)
+   - TDST Levels (ใช้ค่าจริง)
+   - Last Setup 9 บอกอะไร
+
+✅ **7. 📋 Trading Strategy** (Bullet — บังคับมีครบ!)
+   
+   ✅ **Bull Case** (3 เงื่อนไข ใช้ราคาจริง)
+   ❌ **Bear Case** (3 เงื่อนไข ใช้ราคาจริง)
+   🎯 **Entry Zone**: USD A-B (ใกล้ ⭐⭐⭐ Support)
+   🛑 **Stop Loss**: USD X (ใต้ Support + Buffer 1-2%)
+   🏆 **Targets** (3 ระดับ ใช้ Confluence/Fib เป็น base):
+      - T1: USD X — เหตุผล
+      - T2: USD Y — เหตุผล
+      - T3: USD Z — เหตุผล
+   📊 **R:R Calculation** (ครบ 3 Targets)
+      Entry = กลางโซน
+      Risk = |Entry - Stop|
+      T1: Reward/Risk = 1:?
+      T2: Reward/Risk = 1:?
+      T3: Reward/Risk = 1:?
+
+✅ **8. ⚠️ Risk Warning** (3-4 ข้อ)
+   - ทรงกราฟ: Volume, Bollinger, RSI
+   - ข่าว: เฉพาะที่ป้อนใน "บริบทข่าว"
+   - Position sizing
+
+═══════════════════════════════════════════
+🚨 กฎเหล็ก (Anti-Hallucination Rules)
+═══════════════════════════════════════════
+
+**กฎ 1 — ตัวเลขทุกตัวต้องมาจากข้อมูล**:
+✅ ใช้ Confluence ตามที่ระบบให้ (USD 326.99, 313.40)
+✅ ใช้ RSI ตามที่ระบบให้ (เช่น 56.81)
+✅ ใช้ %B ตามที่ระบบให้ (เช่น 70.4%)
+✅ คำนวณ Stop/Target จาก Confluence + Buffer
+❌ ห้ามแต่งตัวเลขใหม่
+❌ ห้ามเอาตัวเลขจาก ARM (ตัวอย่าง) มาใช้
+
+**กฎ 2 — Cross-check สถานะกับข้อมูลจริง**:
+- Bullish/Bearish Alignment: ดูจาก SMA stacking ในข้อมูล
+- ถ้า SMA50 > SMA200 → Bullish Alignment
+- ถ้า SMA50 < SMA200 → Bearish Alignment (Death Cross active)
+- ห้ามระบุว่า bearish ทั้งที่ระบบบอก bullish
+
+**กฎ 3 — ห้ามมโนวันที่/เหตุการณ์**:
+❌ "Death Cross เกิด 18 ก.พ. 2026"
+❌ "Golden Cross เกิดต้นเดือน เม.ย."
+✅ "ตามข้อมูล MA stacking เป็น bullish alignment"
+✅ "ดูจาก SMA50 > SMA200 → Golden Cross active"
+
+**กฎ 4 — ห้ามมโนข่าว/บริษัท**:
+✅ ใช้เฉพาะข่าวที่ป้อนใน "บริบทข่าวล่าสุด"
+❌ ห้ามใส่ Anthropic/OpenAI/บริษัทที่ไม่ได้กล่าว
+
+**กฎ 5 — Trading Strategy บังคับครบ**:
+ถ้าขาด Entry/Stop/Target/R:R = บทความใช้ไม่ได้!
+
+**กฎ 6 — Format**:
+- ใช้ "USD" ไม่ใช่ "$"
+- ใช้ปี ค.ศ. (2026) ไม่ใช่ พ.ศ. (2569)
+- ลงท้ายด้วย "ค่ะ" หรือ "นะคะ"
+- ห้ามเขียน "🔥 ศัพท์มืออาชีพ:" เป็น list (ใช้ในประโยคเลย)
+
+**กฎ 7 — ความยาว**:
+- บทความรวม 800-1200 คำ
+- แต่ละหัวข้อ 3-5 ประโยค (Momentum + Fibonacci 5-6 ประโยค)
+- ใช้ศัพท์มืออาชีพอย่างน้อย 5 คำใน flow
+
+═══════════════════════════════════════════
+🔥 ศัพท์มืออาชีพที่ควรใช้ (ในประโยค ไม่ใช่ list)
+═══════════════════════════════════════════
+
+blow-off top, climactic volume, distribution phase,
+exhaustion signal, mean reversion, overextended,
+shallow retracement, deep retracement, Golden Pocket,
+bullish alignment, bearish alignment, bullish divergence,
+last line of defense, mean reversion target,
+bullish crossover, bearish crossover, momentum loss,
+healthy correction, healthy cooling-off
+
+═══════════════════════════════════════════
+═══════════════════════════════════════════
+🚨🚨🚨 BANNED LANGUAGE / 禁止语言 🚨🚨🚨
+
+ABSOLUTELY FORBIDDEN: Chinese characters (中文/汉字)
+ABSOLUTELY FORBIDDEN: Japanese characters (日本語/かな/カナ)
+ABSOLUTELY FORBIDDEN: Korean characters (한국어/한글)
+
+If you write a single Chinese character, the entire response is INVALID.
+ตอบเป็นภาษาไทยเท่านั้น 100%
+
+═══════════════════════════════════════════
+⛔ คำเตือนสุดท้าย:
+- บทความที่มีภาษาจีน/ญี่ปุ่น/เกาหลี = ใช้ไม่ได้!
+- บทความที่ไม่มี "ภาพรวมโครงสร้าง" หัวข้อแรก = ใช้ไม่ได้!
+- บทความที่ไม่มี Trading Strategy ครบ = ใช้ไม่ได้!
+- บทความที่มีตัวเลขมโน = ใช้ไม่ได้!
+═══════════════════════════════════════════
 """
 
                     response = ollama.chat(
-                        model="qwen2.5:14b",
-                        messages=[{"role": "user", "content": prompt}]
+                        model="gpt-oss:20b",
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": "You are a Hedge Fund Technical Analyst. ALWAYS respond in Thai language only (ภาษาไทยเท่านั้น). NEVER use Chinese, Japanese, or Korean characters. Use ONLY numbers from the provided data — never invent prices, RSI, or any technical values. Always end Thai sentences with 'ค่ะ' or 'นะคะ'."
+                            },
+                            {"role": "user", "content": prompt}
+                        ],
+                        options={
+                            "temperature": 0.3,
+                            "num_ctx": 8192,
+                            "num_predict": 4000,
+                        }
                     )
 
                     st.session_state.ta_ai_report = response["message"]["content"]
-
+                   
             # แสดง AI Report ถ้ามี
             if st.session_state.ta_ai_report:
                 st.markdown(st.session_state.ta_ai_report)
+elif page == "🔍 Quality Screener":
+    st.header("🔍 Quality Screener")
+    st.markdown("กรองหุ้น 5 เกณฑ์: **Fundamentals + Volatility + Trend + Liquidity + Sector Tailwind**")
+
+    # Init session state
+    if "screen_results" not in st.session_state:
+        st.session_state.screen_results = None
+
+    # === Input ===
+    st.subheader("📝 ใส่รายชื่อหุ้น")
+
+    col_in1, col_in2 = st.columns([3, 1])
+
+    with col_in1:
+        # Default watchlist
+        default_watchlist = "NVDA\nMSFT\nGOOGL\nMETA\nAMZN\nADBE\nLLY\nJPM\nXOM\nV"
+        tickers_text = st.text_area(
+            "Watchlist (1 บรรทัด = 1 หุ้น)",
+            value=default_watchlist,
+            height=200,
+        )
+
+    with col_in2:
+        st.markdown("**ตัวอย่าง Watchlist:**")
+        st.markdown("""
+        - AI: NVDA, AMD, AVGO, TSM
+        - Tech: MSFT, GOOGL, META
+        - Healthcare: LLY, UNH, JNJ
+        - Finance: V, JPM, MA
+        - Energy: XOM, NEE
+        """)
+
+    # Parse tickers
+    tickers = [t.strip().upper() for t in tickers_text.strip().split("\n") if t.strip()]
+
+    st.info(f"📊 จำนวนหุ้นที่จะกรอง: **{len(tickers)} ตัว**")
+
+    if st.button("🔍 เริ่มกรอง", type="primary", disabled=len(tickers) == 0):
+
+        try:
+            from strategy.quality_screener import batch_screen
+
+            progress_bar = st.progress(0, text="เริ่มต้น...")
+
+            # 💡 แก้ไขให้รับตัวแปร 3 ตัวให้ตรงกับที่ batch_screen ส่งมา
+            def update_progress(current, total, ticker):
+                pct = current / total
+                progress_bar.progress(pct, text=f"กำลังกรอง {ticker} ({current}/{total})")
+
+            results = batch_screen(tickers, progress_callback=update_progress)
+            st.session_state.screen_results = results
+
+            progress_bar.empty()
+            st.success(f"✅ กรองครบแล้ว {len(results)} ตัว")
+
+        except Exception as e:
+            st.error(f"❌ เกิดข้อผิดพลาด: {e}")
+            import traceback
+            st.code(traceback.format_exc())
+
+    # === แสดงผล ===
+    if st.session_state.screen_results is not None:
+        results = st.session_state.screen_results
+
+        st.markdown("---")
+
+        # === สรุป ===
+        st.subheader("📊 สรุปผลการกรอง")
+
+        # Map verdict (string ยาว) → category สั้น
+        def categorize_verdict(verdict_text):
+            if "PASS — ผ่านทุกเกณฑ์" in verdict_text:
+                return "PASS_ALL"
+            elif "BORDERLINE" in verdict_text:
+                return "BORDERLINE"
+            elif "WEAK" in verdict_text:
+                return "WEAK"
+            elif "FAIL" in verdict_text:
+                return "FAIL"
+            else:
+                return "ERROR"
+
+        verdicts = {"PASS_ALL": 0, "BORDERLINE": 0, "WEAK": 0, "FAIL": 0, "ERROR": 0}
+        for r in results:
+            verdict_text = r.get("verdict", "ERROR")
+            cat = categorize_verdict(verdict_text)
+            verdicts[cat] = verdicts.get(cat, 0) + 1
+
+        col_v1, col_v2, col_v3, col_v4 = st.columns(4)
+        with col_v1:
+            st.metric("🟢 ผ่านทุกเกณฑ์", verdicts["PASS_ALL"])
+        with col_v2:
+            st.metric("🟡 Borderline", verdicts["BORDERLINE"])
+        with col_v3:
+            st.metric("🟠 Weak", verdicts["WEAK"])
+        with col_v4:
+            st.metric("🔴 Fail", verdicts["FAIL"])
+
+        # === ตาราง ===
+        st.markdown("---")
+        st.subheader("📋 ตารางผลลัพธ์ (เรียงตามคะแนน)")
+
+        import pandas as pd
+
+        rows = []
+        for r in results:
+            if "error" in r or "total" not in r:
+                rows.append({
+                    "หุ้น": r.get("ticker", "?"),
+                    "Total": "ERROR",
+                    "Avg": "-",
+                    "Fund": "-",
+                    "Vol": "-",
+                    "Trend": "-",
+                    "Liq": "-",
+                    "Sector": "-",
+                    "ผ่าน": "0/5",
+                    "Verdict": "❌ ERROR",
+                })
+            else:
+                # นับว่าผ่านกี่เกณฑ์
+                passed_count = sum([
+                    r["fundamentals"]["passed"],
+                    r["volatility"]["passed"],
+                    r["trend"]["passed"],
+                    r["liquidity"]["passed"],
+                    r["sector"]["passed"],
+                ])
+
+                rows.append({
+                    "หุ้น": r["ticker"],
+                    "Total": f"{r['total']}/50",
+                    "Avg": f"{r['average']}/10",
+                    "Fund": f"{r['fundamentals']['score']}",
+                    "Vol": f"{r['volatility']['score']}",
+                    "Trend": f"{r['trend']['score']}",
+                    "Liq": f"{r['liquidity']['score']}",
+                    "Sector": f"{r['sector']['score']}",
+                    "ผ่าน": f"{passed_count}/5",
+                    "Verdict": r["verdict"],
+                })
+
+        df = pd.DataFrame(rows)
+        st.dataframe(df, use_container_width=True, hide_index=True)
+
+        # === Detail แต่ละหุ้น ===
+        st.markdown("---")
+        st.subheader("🔬 รายละเอียดแต่ละหุ้น")
+
+        # เลือกหุ้น
+        valid_tickers = [r["ticker"] for r in results if "error" not in r]
+
+        if valid_tickers:
+            selected_ticker = st.selectbox("เลือกหุ้นเพื่อดูรายละเอียด:", valid_tickers)
+
+            selected = next(r for r in results if r["ticker"] == selected_ticker)
+
+            # นับผ่านเกณฑ์
+            passed_count = sum([
+                selected["fundamentals"]["passed"],
+                selected["volatility"]["passed"],
+                selected["trend"]["passed"],
+                selected["liquidity"]["passed"],
+                selected["sector"]["passed"],
+            ])
+
+            # แสดง verdict + total score
+            col_d1, col_d2, col_d3 = st.columns(3)
+            with col_d1:
+                st.metric("Avg Score", f"{selected['average']}/10")
+            with col_d2:
+                st.metric("Total", f"{selected['total']}/50")
+            with col_d3:
+                st.metric("ผ่าน", f"{passed_count}/5 เกณฑ์")
+
+            st.markdown(f"### {selected['verdict']}")
+
+            # 5 เกณฑ์
+            st.markdown("---")
+
+            # 1. Fundamentals
+            f = selected["fundamentals"]
+            with st.expander(f"📊 1. Fundamentals: {f['score']}/10 {'✅' if f['passed'] else '❌'}"):
+                d = f["details"]
+                st.markdown(f"- Revenue Growth: **{d.get('revenue_growth', 0)*100:.1f}%**")
+                st.markdown(f"- Profit Margin: **{d.get('profit_margin', 0)*100:.1f}%**")
+                fcf = d.get('fcf', 0)
+                st.markdown(f"- Free Cash Flow: **USD {fcf/1e9:.1f}B**")
+                st.markdown(f"- Debt/Equity: **{d.get('debt_to_equity', 0):.0f}**")
+                st.markdown(f"- ROE: **{d.get('roe', 0)*100:.1f}%**")
+
+            # 2. Volatility
+            v = selected["volatility"]
+            with st.expander(f"📈 2. Volatility: {v['score']}/10 {'✅' if v['passed'] else '❌'}"):
+                d = v["details"]
+                st.markdown(f"- Beta: **{d.get('beta', 'N/A')}**")
+                st.markdown(f"- ATR %: **{d.get('atr_pct', 0):.2f}%**")
+                st.markdown(f"- Max Drawdown 52W: **{d.get('max_drawdown', 0):.1f}%**")
+
+            # 3. Trend
+            t = selected["trend"]
+            with st.expander(f"📉 3. Trend: {t['score']}/10 {'✅' if t['passed'] else '❌'}"):
+                d = t["details"]
+                st.markdown(f"- Price vs SMA200: **{d.get('price_vs_ma200', 0):+.1f}%**")
+                st.markdown(f"- Golden Cross: **{'Yes ✅' if d.get('golden_cross') else 'No ❌'}**")
+                st.markdown(f"- RS vs SPY (6mo): **{d.get('rs_vs_spy', 0):+.1f}%**")
+                st.markdown(f"  - Stock 6M Return: {d.get('stock_6m_return', 0):+.1f}%")
+                st.markdown(f"  - SPY 6M Return: {d.get('spy_6m_return', 0):+.1f}%")
+
+            # 4. Liquidity
+            l = selected["liquidity"]
+            with st.expander(f"💰 4. Liquidity: {l['score']}/10 {'✅' if l['passed'] else '❌'}"):
+                d = l["details"]
+                st.markdown(f"- Market Cap: **USD {d.get('market_cap_B', 0):.1f}B**")
+                st.markdown(f"- Avg Daily Volume: **USD {d.get('avg_daily_vol_M', 0):.0f}M**")
+
+            # 5. Sector
+            s = selected["sector"]
+            with st.expander(f"🌐 5. Sector Tailwind: {s['score']}/10 {'✅' if s['passed'] else '❌'}"):
+                d = s["details"]
+                st.markdown(f"- Groups: **{', '.join(d.get('groups', []))}**")
+                st.markdown(f"- Best Group: **{d.get('best_group', 'N/A')}**")
+                st.markdown(f"- Sector Score: **{d.get('sector_score', 0)}/10**")
+
+            # === Action Section ===
+            st.markdown("---")
+            verdict_text = selected["verdict"]
+
+            if "PASS — ผ่านทุกเกณฑ์" in verdict_text:
+                st.success(f"💡 **ขั้นต่อไป:** หุ้นผ่านครบ 5 เกณฑ์! แนะนำไปทำ Position Sizer เพื่อคำนวณขนาดที่เหมาะสม")
+            elif "BORDERLINE" in verdict_text:
+                st.warning(f"💡 **ขั้นต่อไป:** น่าสนใจ แต่ต้องวิเคราะห์ลึก เช็ค TA + News ก่อนตัดสินใจ")
+            elif "WEAK" in verdict_text:
+                st.warning(f"💡 **ขั้นต่อไป:** มีจุดอ่อน ใส่ Watchlist รอราคาที่ดีกว่า")
+            else:
+                st.error(f"💡 **ขั้นต่อไป:** ไม่แนะนำ มีจุดอ่อนหลายด้าน")

@@ -310,30 +310,95 @@ def check_sector_tailwind(ticker):
 
     except Exception as e:
         return {"score": 5, "details": {"error": str(e)}, "passed": True}
+
+# ==========================================
+#  Master Function — Screen Watchlist
+# ==========================================
+
+def screen_single(ticker: str) -> dict:
+    """ตรวจหุ้นตัวเดียว ครบ 5 เกณฑ์"""
+
+    f = check_fundamentals(ticker)
+    v = check_volatility(ticker)
+    t = check_trend(ticker)
+    l = check_liquidity(ticker)
+    s = check_sector_tailwind(ticker)
+
+    total = f["score"] + v["score"] + t["score"] + l["score"] + s["score"]
+
+    # ผ่านเกณฑ์ทั้ง 5 หรือไม่
+    all_passed = all([f["passed"], v["passed"], t["passed"], l["passed"], s["passed"]])
+
+    # คะแนนเฉลี่ย
+    avg = round(total / 5, 1)
+
+    # Verdict
+    if total >= 40 and all_passed:
+        verdict = "🟢 PASS — ผ่านทุกเกณฑ์ น่าสนใจ"
+    elif total >= 35:
+        verdict = "🟡 BORDERLINE — เกือบผ่าน ต้องวิเคราะห์ลึก"
+    elif total >= 25:
+        verdict = "🟠 WEAK — มีจุดอ่อนชัด"
+    else:
+        verdict = "🔴 FAIL — ไม่แนะนำ"
+
+    return {
+        "ticker": ticker,
+        "fundamentals": f,
+        "volatility": v,
+        "trend": t,
+        "liquidity": l,
+        "sector": s,
+        "total": round(total, 1),
+        "average": avg,
+        "all_passed": all_passed,
+        "verdict": verdict,
+    }
+
+
+def batch_screen(tickers: list, progress_callback=None) -> list:
+    """ตรวจหุ้นหลายตัว แล้วเรียงตามคะแนน"""
+    results = []
+
+    for i, ticker in enumerate(tickers):
+        if progress_callback:
+            progress_callback(i + 1, len(tickers), ticker)
+
+        try:
+            result = screen_single(ticker.upper().strip())
+            results.append(result)
+        except Exception as e:
+            results.append({
+                "ticker": ticker,
+                "error": str(e),
+                "total": 0,
+                "verdict": f"❌ ERROR: {e}",
+            })
+
+    # เรียงจากคะแนนมาก → น้อย
+    results.sort(key=lambda x: x.get("total", 0), reverse=True)
+
+    return results
 if __name__ == "__main__":
-    test_ticker = "NVDA"
-    print(f"=== Quality Screen: {test_ticker} ===\n")
+    # Test 1: Single Stock
+    print("=== Test 1: Single Stock (NVDA) ===\n")
+    result = screen_single("NVDA")
+    print(f"Total Score: {result['total']}/50 (Avg: {result['average']}/10)")
+    print(f"Verdict: {result['verdict']}\n")
 
-    print("  [1/5] Fundamentals...")
-    f = check_fundamentals(test_ticker)
-    print(f"         Score: {f['score']}/10 {'✅' if f['passed'] else '❌'}")
+    print(f"  Fundamentals: {result['fundamentals']['score']}/10 {'✅' if result['fundamentals']['passed'] else '❌'}")
+    print(f"  Volatility:   {result['volatility']['score']}/10 {'✅' if result['volatility']['passed'] else '❌'}")
+    print(f"  Trend:        {result['trend']['score']}/10 {'✅' if result['trend']['passed'] else '❌'}")
+    print(f"  Liquidity:    {result['liquidity']['score']}/10 {'✅' if result['liquidity']['passed'] else '❌'}")
+    print(f"  Sector:       {result['sector']['score']}/10 {'✅' if result['sector']['passed'] else '❌'}")
 
-    print("  [2/5] Volatility...")
-    v = check_volatility(test_ticker)
-    print(f"         Score: {v['score']}/10 {'✅' if v['passed'] else '❌'}")
+    # Test 2: Watchlist
+    print("\n\n=== Test 2: Watchlist (5 stocks) ===\n")
+    watchlist = ["NVDA", "META", "TSM", "JPM", "XOM"]
+    results = screen_watchlist(watchlist)
 
-    print("  [3/5] Trend...")
-    t = check_trend(test_ticker)
-    print(f"         Score: {t['score']}/10 {'✅' if t['passed'] else '❌'}")
-
-    print("  [4/5] Liquidity...")
-    l = check_liquidity(test_ticker)
-    print(f"         Score: {l['score']}/10 {'✅' if l['passed'] else '❌'}")
-
-    print("  [5/5] Sector Tailwind...")
-    s = check_sector_tailwind(test_ticker)
-    print(f"         Score: {s['score']}/10 {'✅' if s['passed'] else '❌'}")
-
-    total = f['score'] + v['score'] + t['score'] + l['score'] + s['score']
-    avg = total / 5
-    print(f"\n  Total: {total}/50 (Avg: {avg:.1f}/10)")
+    for r in results:
+        if "error" in r:
+            print(f"  {r['ticker']}: ERROR")
+        else:
+            print(f"  {r['ticker']:6s} {r['total']:5.1f}/50  {r['verdict']}")
